@@ -22,8 +22,11 @@ public class Modulo extends ComponenteCatalogo {
 
     @Override
     public void remover(ComponenteCatalogo componente) {
-        subComponentes.remove(componente);
-        LoggerService.getInstance().log("Item '" + componente.getNome() + "' removido do módulo '" + this.nome + "'.");
+        if (subComponentes.remove(componente)) {
+            LoggerService.getInstance().log("Item '" + componente.getNome() + "' removido do módulo '" + this.nome + "'.");
+        } else {
+            LoggerService.getInstance().log("Item '" + componente.getNome() + "' não encontrado no módulo '" + this.nome + "'.");
+        }
     }
 
     @Override
