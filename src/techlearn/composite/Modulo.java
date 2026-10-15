@@ -49,10 +49,6 @@ public class Modulo extends ComponenteCatalogo {
         }
     }
 
-    public List<ComponenteCatalogo> getSubComponentes() {
-        return subComponentes;
-    }
-
     @Override
     public Iterator<ComponenteCatalogo> criarIterator() {
         return new ModuloIterator(subComponentes);
