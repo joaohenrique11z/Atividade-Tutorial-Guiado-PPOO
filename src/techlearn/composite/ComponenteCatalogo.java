@@ -19,6 +19,11 @@ public abstract class ComponenteCatalogo {
         throw new UnsupportedOperationException();
     }
 
+    // Permite ao cliente diferenciar folha de composição sem usar instanceof.
+    public boolean ehFolha() {
+        return false;
+    }
+
     public abstract void exibirDetalhes();
 
     // Só os filhos diretos.

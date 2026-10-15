@@ -47,20 +47,16 @@ public class Main {
         logger.log("Execução da atividade finalizada.");
     }
 
+    // Passo 5: o CompositeIterator entrega todos os itens da árvore, aqui só filtramos.
     public static void filtrarAulasCurtas(ComponenteCatalogo componente, int limiteMinutos) {
-        Iterator<ComponenteCatalogo> iterator = componente.criarIterator();
-
-        if (!iterator.hasNext() && componente instanceof Aula) {
-            if (componente.getDuracaoMinutos() <= limiteMinutos) {
-                LoggerService.getInstance().log("[FILTRO <= " + limiteMinutos + " min] "
-                        + componente.getNome() + " (" + componente.getDuracaoMinutos() + " min)");
-            }
-            return;
-        }
+        Iterator<ComponenteCatalogo> iterator = componente.criarIteratorCompleto();
 
         while (iterator.hasNext()) {
-            ComponenteCatalogo subItem = iterator.next();
-            filtrarAulasCurtas(subItem, limiteMinutos);
+            ComponenteCatalogo item = iterator.next();
+            if (item.ehFolha() && item.getDuracaoMinutos() <= limiteMinutos) {
+                LoggerService.getInstance().log("[FILTRO <= " + limiteMinutos + " min] "
+                        + item.getNome() + " (" + item.getDuracaoMinutos() + " min)");
+            }
         }
     }
 }

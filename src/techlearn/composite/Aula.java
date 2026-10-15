@@ -23,6 +23,11 @@ public class Aula extends ComponenteCatalogo {
     }
 
     @Override
+    public boolean ehFolha() {
+        return true;
+    }
+
+    @Override
     public void exibirDetalhes() {
         System.out.println("  - Aula: " + getNome() + " (" + getDuracaoMinutos() + " min)");
     }
