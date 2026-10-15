@@ -17,6 +17,7 @@ Segui o roteiro do professor e mantive os nomes de pacotes e classes dele. Depoi
     └── techlearn/
         ├── Main.java
         ├── TesteSingletonThreads.java
+        ├── TesteContratosAudit.java
         ├── logging/
         │   └── LoggerService.java
         ├── composite/
@@ -106,9 +107,10 @@ javac -encoding UTF-8 -d bin src/techlearn/*.java src/techlearn/logging/*.java s
 
 java -cp bin techlearn.Main
 java -cp bin techlearn.TesteSingletonThreads
+java -cp bin techlearn.TesteContratosAudit
 ```
 
-Usei `-encoding UTF-8` porque no Windows o `javac` às vezes lê os acentos errado. Se os acentos aparecerem estranhos no PowerShell, rode `[Console]::OutputEncoding = [Text.Encoding]::UTF8` antes e execute com `java -Dstdout.encoding=UTF-8 -cp bin techlearn.Main`.
+Usei `-encoding UTF-8` porque no Windows o `javac` às vezes lê os acentos errado. Se os acentos aparecerem estranhos no PowerShell, rode `[Console]::OutputEncoding = [Text.Encoding]::UTF8` antes e execute com `java "-Dstdout.encoding=UTF-8" -cp bin techlearn.Main`.
 
 ## Saída da execução
 
