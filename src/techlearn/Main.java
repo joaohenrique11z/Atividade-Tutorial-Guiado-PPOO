@@ -20,6 +20,13 @@ public class Main {
         moduloPadroes.adicionar(new Aula("Aula 2.2: Composite Hierárquico", 50));
         moduloPadroes.adicionar(new Aula("Aula 2.3: Iterator para Coleções", 40));
 
+        // Submódulo dentro do Módulo 2, guardado em array (ModuloLegado).
+        ModuloLegado moduloComportamentais = new ModuloLegado("Módulo 2.4: Padrões Comportamentais (legado)");
+        moduloComportamentais.adicionar(new Aula("Aula 2.4.1: Observer e Eventos", 35));
+        moduloComportamentais.adicionar(new Aula("Aula 2.4.2: Strategy no Dia a Dia", 55));
+        moduloComportamentais.adicionar(new Aula("Aula 2.4.3: Template Method", 25));
+        moduloPadroes.adicionar(moduloComportamentais);
+
         cursoEngenharia.adicionar(moduloOO);
         cursoEngenharia.adicionar(moduloPadroes);
 
@@ -37,12 +44,31 @@ public class Main {
                     + " | Duração acumulada: " + subItem.getDuracaoMinutos() + " min");
         }
 
+        System.out.println("\n==================================================");
+        System.out.println("Varredura Completa da Árvore via CompositeIterator:");
+        System.out.println("==================================================");
+
+        Iterator<ComponenteCatalogo> completo = cursoEngenharia.criarIteratorCompleto();
+        while (completo.hasNext()) {
+            ComponenteCatalogo item = completo.next();
+            String tipo = item.ehFolha() ? "Aula  " : "Módulo";
+            logger.log("[" + tipo + "] " + item.getNome() + " (" + item.getDuracaoMinutos() + " min)");
+        }
+
         // Passo 5: Desafio de Extensão Prática
         System.out.println("\n==================================================");
         System.out.println("Desafio Passo 5: Filtro de Conteúdo Curto (<= 45 min):");
         System.out.println("==================================================");
         logger.log("Iniciando filtragem de aulas individuais com duração <= 45 min...");
         filtrarAulasCurtas(cursoEngenharia, 45);
+
+        System.out.println("\n==================================================");
+        System.out.println("Teste do remover:");
+        System.out.println("==================================================");
+        Aula aulaExtra = new Aula("Aula Extra: Revisão Geral", 20);
+        moduloOO.remover(aulaExtra);
+        moduloOO.adicionar(aulaExtra);
+        moduloOO.remover(aulaExtra);
 
         logger.log("Execução da atividade finalizada.");
     }
