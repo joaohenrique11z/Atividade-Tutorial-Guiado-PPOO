@@ -1,14 +1,14 @@
-# TechLearn Solutions — Singleton, Composite e Iterator em Java
+# Tutorial Guiado: Composição de Padrões (TechLearn Solutions)
 
-## 1. Título e Contexto
+Trabalho da disciplina de Padrões de Projeto (IFPE). A ideia da atividade é montar o catálogo de cursos de uma empresa fictícia, a TechLearn Solutions, usando três padrões juntos:
 
-A **TechLearn Solutions** precisa gerenciar um catálogo de cursos hierárquico (Cursos → Módulos → Aulas), percorrê-lo de forma uniforme e registrar em log todas as operações relevantes. A solução integra três padrões de projeto do GoF:
+- Singleton no `LoggerService`, que é o único lugar do sistema que escreve log.
+- Composite em `ComponenteCatalogo`, `Modulo`, `ModuloLegado` e `Aula`, para montar a árvore curso → módulos → aulas.
+- Iterator em `Iterator`, `ModuloIterator`, `ArrayModuloIterator`, `CompositeIterator` e `NullIterator`, para percorrer essa árvore sem o cliente precisar saber como cada módulo guarda os filhos.
 
-| Padrão | Classes | Papel na arquitetura |
-|---|---|---|
-| **Singleton** | `techlearn.logging.LoggerService` | Ponto único e global de logging. A instância é criada uma única vez (inicialização *eager* em `private static final`), o construtor é `private` e o acesso ocorre via `getInstance()`. |
-| **Composite** | `techlearn.composite.ComponenteCatalogo` (Component), `Aula` (Leaf), `Modulo` (Composite) | Representa a árvore do catálogo. `Modulo` agrega qualquer `ComponenteCatalogo` (aulas ou outros módulos) e calcula a duração total recursivamente; `Aula` é a folha com duração própria. |
-| **Iterator** | `techlearn.iterator.Iterator` (interface), `ModuloIterator` (Concrete Iterator), `NullIterator` (Null Object) | Fornece percurso sobre os filhos de um componente sem expor a coleção interna (`List`). Folhas retornam um `NullIterator`, que nunca possui próximo elemento. |
+Segui o roteiro do professor e mantive os nomes de pacotes e classes dele. Depois fiz algumas melhorias, que explico no final.
+
+## Estrutura de pastas
 
 ```text
 .
@@ -16,17 +16,23 @@ A **TechLearn Solutions** precisa gerenciar um catálogo de cursos hierárquico 
 └── src/
     └── techlearn/
         ├── Main.java
+        ├── TesteSingletonThreads.java
         ├── logging/
         │   └── LoggerService.java
         ├── composite/
         │   ├── ComponenteCatalogo.java
         │   ├── Aula.java
-        │   └── Modulo.java
+        │   ├── Modulo.java
+        │   └── ModuloLegado.java
         └── iterator/
             ├── Iterator.java
             ├── ModuloIterator.java
+            ├── ArrayModuloIterator.java
+            ├── CompositeIterator.java
             └── NullIterator.java
 ```
+
+## Diagrama de classes
 
 ```mermaid
 classDiagram
@@ -42,12 +48,22 @@ classDiagram
         +remover(ComponenteCatalogo)
         +getNome() String
         +getDuracaoMinutos() int
+        +ehFolha() boolean
         +exibirDetalhes()*
         +criarIterator() Iterator*
+        +criarIteratorCompleto() Iterator*
     }
-    class Aula
+    class Aula {
+        -nome: String
+        -duracaoMinutos: int
+        +ehFolha() boolean
+    }
     class Modulo {
         -subComponentes: List
+    }
+    class ModuloLegado {
+        -subComponentes: ComponenteCatalogo[]
+        -quantidade: int
     }
     class Iterator~T~ {
         <<interface>>
@@ -55,49 +71,67 @@ classDiagram
         +next() T
     }
     class ModuloIterator
+    class ArrayModuloIterator
+    class CompositeIterator {
+        -pilha: Deque~Iterator~
+    }
     class NullIterator~T~
 
     ComponenteCatalogo <|-- Aula
     ComponenteCatalogo <|-- Modulo
+    ComponenteCatalogo <|-- ModuloLegado
     Modulo o-- ComponenteCatalogo
+    ModuloLegado o-- ComponenteCatalogo
+
     Iterator <|.. ModuloIterator
+    Iterator <|.. ArrayModuloIterator
+    Iterator <|.. CompositeIterator
     Iterator <|.. NullIterator
-    Modulo ..> ModuloIterator : cria
+
+    Modulo ..> ModuloIterator : criarIterator
+    ModuloLegado ..> ArrayModuloIterator : criarIterator
+    Modulo ..> CompositeIterator : criarIteratorCompleto
+    ModuloLegado ..> CompositeIterator : criarIteratorCompleto
     Aula ..> NullIterator : cria
     Modulo ..> LoggerService : usa
+    ModuloLegado ..> LoggerService : usa
 ```
 
-## 2. Como Executar
+## Como compilar e executar
 
-Pré-requisito: JDK 8+ instalado (`javac` e `java` no `PATH`). A partir da raiz do projeto:
+Precisa de um JDK 8 ou mais novo. Na raiz do projeto:
 
 ```bash
-# Compilação (gera os .class em ./bin)
-javac -encoding UTF-8 -d bin src/techlearn/logging/*.java src/techlearn/iterator/*.java src/techlearn/composite/*.java src/techlearn/Main.java
+javac -encoding UTF-8 -d bin src/techlearn/*.java src/techlearn/logging/*.java src/techlearn/iterator/*.java src/techlearn/composite/*.java
 
-# Execução
 java -cp bin techlearn.Main
+java -cp bin techlearn.TesteSingletonThreads
 ```
 
-> No Windows (PowerShell), para exibir os acentos corretamente, execute antes `[Console]::OutputEncoding = [Text.Encoding]::UTF8` e rode com `java -Dstdout.encoding=UTF-8 -cp bin techlearn.Main`.
+Usei `-encoding UTF-8` porque no Windows o `javac` às vezes lê os acentos errado. Se os acentos aparecerem estranhos no PowerShell, rode `[Console]::OutputEncoding = [Text.Encoding]::UTF8` antes e execute com `java -Dstdout.encoding=UTF-8 -cp bin techlearn.Main`.
 
-## 3. Saída da Execução (Evidência)
+## Saída da execução
 
-Saída real capturada no terminal após executar `java -cp bin techlearn.Main` (JDK 21):
+Saída real que deu aqui quando rodei `techlearn.Main` (JDK 21):
 
 ```text
 [SISTEMA] Serviço de Logging Inicializado.
-[2026-10-15 15:52:07] [LOG]: Iniciando montagem da estrutura de cursos...
-[2026-10-15 15:52:07] [LOG]: Item 'Aula 1.1: Coesão e Acoplamento' adicionado ao módulo 'Módulo 1: Orientação a Objetos Avançada'.
-[2026-10-15 15:52:07] [LOG]: Item 'Aula 1.2: Interfaces e Polimorfismo' adicionado ao módulo 'Módulo 1: Orientação a Objetos Avançada'.
-[2026-10-15 15:52:07] [LOG]: Item 'Aula 2.1: Singleton na Prática' adicionado ao módulo 'Módulo 2: Padrões de Projeto (GoF)'.
-[2026-10-15 15:52:07] [LOG]: Item 'Aula 2.2: Composite Hierárquico' adicionado ao módulo 'Módulo 2: Padrões de Projeto (GoF)'.
-[2026-10-15 15:52:07] [LOG]: Item 'Aula 2.3: Iterator para Coleções' adicionado ao módulo 'Módulo 2: Padrões de Projeto (GoF)'.
-[2026-10-15 15:52:07] [LOG]: Item 'Módulo 1: Orientação a Objetos Avançada' adicionado ao módulo 'Engenharia de Software Moderna'.
-[2026-10-15 15:52:07] [LOG]: Item 'Módulo 2: Padrões de Projeto (GoF)' adicionado ao módulo 'Engenharia de Software Moderna'.
-[2026-10-15 15:52:07] [LOG]: Estrutura montada com sucesso. Exibindo detalhes da ementa:
+[2026-10-15 16:18:05] [LOG]: Iniciando montagem da estrutura de cursos...
+[2026-10-15 16:18:05] [LOG]: Item 'Aula 1.1: Coesão e Acoplamento' adicionado ao módulo 'Módulo 1: Orientação a Objetos Avançada'.
+[2026-10-15 16:18:05] [LOG]: Item 'Aula 1.2: Interfaces e Polimorfismo' adicionado ao módulo 'Módulo 1: Orientação a Objetos Avançada'.
+[2026-10-15 16:18:05] [LOG]: Item 'Aula 2.1: Singleton na Prática' adicionado ao módulo 'Módulo 2: Padrões de Projeto (GoF)'.
+[2026-10-15 16:18:05] [LOG]: Item 'Aula 2.2: Composite Hierárquico' adicionado ao módulo 'Módulo 2: Padrões de Projeto (GoF)'.
+[2026-10-15 16:18:05] [LOG]: Item 'Aula 2.3: Iterator para Coleções' adicionado ao módulo 'Módulo 2: Padrões de Projeto (GoF)'.
+[2026-10-15 16:18:05] [LOG]: Item 'Aula 2.4.1: Observer e Eventos' adicionado ao módulo 'Módulo 2.4: Padrões Comportamentais (legado)'.
+[2026-10-15 16:18:05] [LOG]: Item 'Aula 2.4.2: Strategy no Dia a Dia' adicionado ao módulo 'Módulo 2.4: Padrões Comportamentais (legado)'.
+[2026-10-15 16:18:05] [LOG]: Capacidade do módulo 'Módulo 2.4: Padrões Comportamentais (legado)' aumentada para 4.
+[2026-10-15 16:18:05] [LOG]: Item 'Aula 2.4.3: Template Method' adicionado ao módulo 'Módulo 2.4: Padrões Comportamentais (legado)'.
+[2026-10-15 16:18:05] [LOG]: Item 'Módulo 2.4: Padrões Comportamentais (legado)' adicionado ao módulo 'Módulo 2: Padrões de Projeto (GoF)'.
+[2026-10-15 16:18:05] [LOG]: Item 'Módulo 1: Orientação a Objetos Avançada' adicionado ao módulo 'Engenharia de Software Moderna'.
+[2026-10-15 16:18:05] [LOG]: Item 'Módulo 2: Padrões de Projeto (GoF)' adicionado ao módulo 'Engenharia de Software Moderna'.
+[2026-10-15 16:18:05] [LOG]: Estrutura montada com sucesso. Exibindo detalhes da ementa:
 
-[Módulo/Curso]: Engenharia de Software Moderna | Duração Total: 225 min
+[Módulo/Curso]: Engenharia de Software Moderna | Duração Total: 340 min
 --------------------------------------------------
 
 [Módulo/Curso]: Módulo 1: Orientação a Objetos Avançada | Duração Total: 105 min
@@ -105,83 +139,113 @@ Saída real capturada no terminal após executar `java -cp bin techlearn.Main` (
   - Aula: Aula 1.1: Coesão e Acoplamento (45 min)
   - Aula: Aula 1.2: Interfaces e Polimorfismo (60 min)
 
-[Módulo/Curso]: Módulo 2: Padrões de Projeto (GoF) | Duração Total: 120 min
+[Módulo/Curso]: Módulo 2: Padrões de Projeto (GoF) | Duração Total: 235 min
 --------------------------------------------------
   - Aula: Aula 2.1: Singleton na Prática (30 min)
   - Aula: Aula 2.2: Composite Hierárquico (50 min)
   - Aula: Aula 2.3: Iterator para Coleções (40 min)
 
+[Módulo/Curso]: Módulo 2.4: Padrões Comportamentais (legado) | Duração Total: 115 min
+--------------------------------------------------
+  - Aula: Aula 2.4.1: Observer e Eventos (35 min)
+  - Aula: Aula 2.4.2: Strategy no Dia a Dia (55 min)
+  - Aula: Aula 2.4.3: Template Method (25 min)
+
 ==================================================
 Varredura do Curso Principal via Iterator:
 ==================================================
-[2026-10-15 15:52:07] [LOG]: Navegando no Item Raiz: Módulo 1: Orientação a Objetos Avançada | Duração acumulada: 105 min
-[2026-10-15 15:52:07] [LOG]: Navegando no Item Raiz: Módulo 2: Padrões de Projeto (GoF) | Duração acumulada: 120 min
+[2026-10-15 16:18:05] [LOG]: Navegando no Item Raiz: Módulo 1: Orientação a Objetos Avançada | Duração acumulada: 105 min
+[2026-10-15 16:18:05] [LOG]: Navegando no Item Raiz: Módulo 2: Padrões de Projeto (GoF) | Duração acumulada: 235 min
+
+==================================================
+Varredura Completa da Árvore via CompositeIterator:
+==================================================
+[2026-10-15 16:18:05] [LOG]: [Módulo] Módulo 1: Orientação a Objetos Avançada (105 min)
+[2026-10-15 16:18:05] [LOG]: [Aula  ] Aula 1.1: Coesão e Acoplamento (45 min)
+[2026-10-15 16:18:05] [LOG]: [Aula  ] Aula 1.2: Interfaces e Polimorfismo (60 min)
+[2026-10-15 16:18:05] [LOG]: [Módulo] Módulo 2: Padrões de Projeto (GoF) (235 min)
+[2026-10-15 16:18:05] [LOG]: [Aula  ] Aula 2.1: Singleton na Prática (30 min)
+[2026-10-15 16:18:05] [LOG]: [Aula  ] Aula 2.2: Composite Hierárquico (50 min)
+[2026-10-15 16:18:05] [LOG]: [Aula  ] Aula 2.3: Iterator para Coleções (40 min)
+[2026-10-15 16:18:05] [LOG]: [Módulo] Módulo 2.4: Padrões Comportamentais (legado) (115 min)
+[2026-10-15 16:18:05] [LOG]: [Aula  ] Aula 2.4.1: Observer e Eventos (35 min)
+[2026-10-15 16:18:05] [LOG]: [Aula  ] Aula 2.4.2: Strategy no Dia a Dia (55 min)
+[2026-10-15 16:18:05] [LOG]: [Aula  ] Aula 2.4.3: Template Method (25 min)
 
 ==================================================
 Desafio Passo 5: Filtro de Conteúdo Curto (<= 45 min):
 ==================================================
-[2026-10-15 15:52:07] [LOG]: Iniciando filtragem de aulas individuais com duração <= 45 min...
-[2026-10-15 15:52:07] [LOG]: [FILTRO <= 45 min] Aula 1.1: Coesão e Acoplamento (45 min)
-[2026-10-15 15:52:07] [LOG]: [FILTRO <= 45 min] Aula 2.1: Singleton na Prática (30 min)
-[2026-10-15 15:52:07] [LOG]: [FILTRO <= 45 min] Aula 2.3: Iterator para Coleções (40 min)
-[2026-10-15 15:52:07] [LOG]: Execução da atividade finalizada.
+[2026-10-15 16:18:05] [LOG]: Iniciando filtragem de aulas individuais com duração <= 45 min...
+[2026-10-15 16:18:05] [LOG]: [FILTRO <= 45 min] Aula 1.1: Coesão e Acoplamento (45 min)
+[2026-10-15 16:18:05] [LOG]: [FILTRO <= 45 min] Aula 2.1: Singleton na Prática (30 min)
+[2026-10-15 16:18:05] [LOG]: [FILTRO <= 45 min] Aula 2.3: Iterator para Coleções (40 min)
+[2026-10-15 16:18:05] [LOG]: [FILTRO <= 45 min] Aula 2.4.1: Observer e Eventos (35 min)
+[2026-10-15 16:18:05] [LOG]: [FILTRO <= 45 min] Aula 2.4.3: Template Method (25 min)
+
+==================================================
+Teste do remover:
+==================================================
+[2026-10-15 16:18:05] [LOG]: Item 'Aula Extra: Revisão Geral' não encontrado no módulo 'Módulo 1: Orientação a Objetos Avançada'.
+[2026-10-15 16:18:05] [LOG]: Item 'Aula Extra: Revisão Geral' adicionado ao módulo 'Módulo 1: Orientação a Objetos Avançada'.
+[2026-10-15 16:18:05] [LOG]: Item 'Aula Extra: Revisão Geral' removido do módulo 'Módulo 1: Orientação a Objetos Avançada'.
+[2026-10-15 16:18:05] [LOG]: Execução da atividade finalizada.
 ```
 
-Observações sobre a evidência:
+O que dá para conferir nessa saída:
 
-- A mensagem `[SISTEMA] Serviço de Logging Inicializado.` aparece **uma única vez**, comprovando o Singleton, embora `LoggerService.getInstance()` seja chamado em vários pontos (`Main` e `Modulo`).
-- A duração total do curso (225 min = 105 + 120) é calculada recursivamente pelo Composite.
-- O filtro retornou exatamente as aulas com duração ≤ 45 min (45, 30 e 40 min) e ignorou as de 60 e 50 min.
+- A mensagem de inicialização do logger aparece uma vez só, mesmo com o `getInstance()` sendo chamado em vários lugares.
+- A duração total (340 min) é a soma de tudo, calculada pelo próprio Composite (105 + 235, e os 235 já incluem os 115 do módulo 2.4).
+- O filtro achou as aulas curtas em todos os níveis, inclusive as duas do módulo legado, que guarda os filhos em array.
 
-## 4. Resolução do Passo 5 (Desafio de Extensão Prática)
+E a saída do `techlearn.TesteSingletonThreads`:
 
-### 4.1. O método `filtrarAulasCurtas`
+```text
+Disparando 20 threads ao mesmo tempo...
+[SISTEMA] Serviço de Logging Inicializado.
+Referências coletadas: 20
+Identidade da primeira instância: 2001049719
+Todas as threads receberam o mesmo objeto? SIM
+```
+
+Como a instância é criada num `private static final`, quem garante que ela só nasce uma vez é a própria JVM, que inicializa a classe uma única vez mesmo com várias threads chegando juntas.
+
+## Passo 5: filtro de aulas curtas
+
+O desafio pedia para listar só as aulas com até 45 minutos. Minha versão final ficou assim:
 
 ```java
 public static void filtrarAulasCurtas(ComponenteCatalogo componente, int limiteMinutos) {
-    Iterator<ComponenteCatalogo> iterator = componente.criarIterator();
-
-    if (!iterator.hasNext() && componente instanceof Aula) {
-        if (componente.getDuracaoMinutos() <= limiteMinutos) {
-            LoggerService.getInstance().log("[FILTRO <= " + limiteMinutos + " min] "
-                    + componente.getNome() + " (" + componente.getDuracaoMinutos() + " min)");
-        }
-        return;
-    }
+    Iterator<ComponenteCatalogo> iterator = componente.criarIteratorCompleto();
 
     while (iterator.hasNext()) {
-        ComponenteCatalogo subItem = iterator.next();
-        filtrarAulasCurtas(subItem, limiteMinutos);
+        ComponenteCatalogo item = iterator.next();
+        if (item.ehFolha() && item.getDuracaoMinutos() <= limiteMinutos) {
+            LoggerService.getInstance().log("[FILTRO <= " + limiteMinutos + " min] "
+                    + item.getNome() + " (" + item.getDuracaoMinutos() + " min)");
+        }
     }
 }
 ```
 
-Funcionamento:
+O `criarIteratorCompleto()` me devolve todos os itens da árvore, um por vez. Eu só olho se o item é uma aula (`ehFolha()`) e se a duração está dentro do limite. Não tem recursão nem `instanceof`, e o limite é parâmetro, então dá para reaproveitar com outro valor.
 
-1. Pede ao componente recebido (seja curso, módulo ou aula) o seu iterador via `criarIterator()`, sem saber qual implementação concreta vai receber.
-2. **Caso base (folha):** se o iterador não tem elementos e o componente é uma `Aula`, verifica se a duração é `<= limiteMinutos`; se for, registra a aula no log via `LoggerService` (Singleton).
-3. **Caso recursivo (composição):** se for um `Modulo`, percorre os filhos com `hasNext()`/`next()` e chama o método recursivamente em cada um. Assim a árvore é percorrida em profundidade (DFS), em qualquer nível de aninhamento.
-4. O limite é um parâmetro (`45` na chamada do `Main`), então a mesma rotina serve para outros cortes (ex.: `filtrarAulasCurtas(curso, 30)`).
+### Pergunta: como a separação entre a estrutura do Composite e a lógica de percurso do Iterator facilitou a adição dessa nova regra sem quebrar o código do cliente?
 
-### 4.2. Pergunta: *"Como a separação entre a estrutura do Composite e a lógica de percurso do Iterator facilitou a adição dessa nova regra sem quebrar o código do cliente?"*
+No meu entendimento, cada padrão ficou com uma parte do problema. O Composite cuida de como o catálogo é montado (o que é módulo, o que é aula, como somar a duração). O Iterator cuida de como passar por esses itens. Por isso, quando chegou a regra nova do filtro, eu não precisei mexer em nenhuma dessas classes: só escrevi um método novo no `Main` que pede o iterador e decide o que fazer com cada item.
 
-A nova regra de negócio ("listar apenas aulas de até 45 minutos") foi incluída **sem alterar nenhuma linha** de `ComponenteCatalogo`, `Aula`, `Modulo`, `ModuloIterator`, `NullIterator` ou `LoggerService`. Bastou acrescentar um método no cliente (`Main`). Isso só foi possível porque cada padrão cuida de uma preocupação diferente:
+O filtro também não sabe que o `Modulo` usa uma `List` por dentro. Ele só conhece o `hasNext()` e o `next()`. Deu para provar isso na prática com o `ModuloLegado`, que guarda os filhos num array: coloquei ele no meio da árvore e o filtro continuou funcionando sem eu alterar uma linha. Se a coleção interna mudar amanhã, só o iterador daquele módulo muda.
 
-**1. Encapsulamento das coleções internas**
-O `Modulo` guarda seus filhos em uma `List<ComponenteCatalogo>` privada. O filtro não acessa essa lista: ele só conhece o contrato `Iterator<ComponenteCatalogo>` (`hasNext()` / `next()`) devolvido por `criarIterator()`. Se amanhã a `List` virar um array, um `Set` ordenado ou uma consulta a banco de dados, basta trocar o iterador concreto, e o filtro continua funcionando sem recompilar a lógica do cliente. A estrutura (Composite) diz **o que** existe; o Iterator diz **como** percorrer. O cliente depende apenas da segunda abstração.
+O `NullIterator` ajuda porque deixa folha e módulo com a mesma "cara" para quem percorre. Uma aula devolve um iterador que simplesmente não tem próximo item, então ninguém precisa testar `null` nem tratar a aula como caso especial. É isso que permite o `CompositeIterator` descer pela árvore inteira com uma pilha, sem perguntar o tipo de cada coisa.
 
-**2. `NullIterator` e o tratamento uniforme de folhas e composições**
-Toda `Aula` devolve um `NullIterator`, cujo `hasNext()` sempre retorna `false`. Com isso, o cliente trata **qualquer** nó da árvore da mesma forma: pede o iterador e itera. Não há `null` para verificar, nem risco de `NullPointerException`, nem `UnsupportedOperationException` ao tentar navegar numa folha. É a aplicação do *Null Object Pattern*: o "nada a percorrer" é modelado por um objeto válido, e o laço `while (iterator.hasNext())` simplesmente não executa nas folhas. Esse é o mesmo princípio de transparência do Composite: o cliente trabalha com `ComponenteCatalogo` sem precisar distinguir, na maior parte do código, se está lidando com uma `Aula` ou um `Modulo`.
+Ligando com o SOLID: cada classe tem um motivo só para mudar (SRP). Se a regra do filtro mudar, mexo no `Main`; se a forma de guardar os filhos mudar, mexo no módulo e no iterador dele. E o sistema fica aberto para novas operações sem modificar o que já funciona (OCP), porque qualquer relatório ou filtro novo é só mais um cliente usando o mesmo iterador.
 
-**3. SRP — Princípio da Responsabilidade Única**
-- `Aula` / `Modulo`: representam os dados e a hierarquia do catálogo (e agregam a duração).
-- `ModuloIterator` / `NullIterator`: sabem apenas como avançar sobre os filhos.
-- `LoggerService`: sabe apenas formatar e emitir logs.
-- `Main.filtrarAulasCurtas`: contém somente a **regra de negócio** do filtro.
+## O que eu melhorei além do roteiro
 
-Cada classe tem um único motivo para mudar. Uma mudança no critério do filtro (ex.: ≤ 30 min, ou só aulas com "Padrões" no nome) afeta apenas o método do cliente, nunca a estrutura nem o mecanismo de percurso.
-
-**4. OCP — Princípio Aberto/Fechado**
-O sistema ficou **aberto para extensão** (novas operações sobre o catálogo, como filtros, relatórios, somatórios ou exportações, podem ser escritas como novos clientes que usam `criarIterator()`) e **fechado para modificação** (as classes já testadas do Composite e do Iterator não precisaram ser editadas). Novos tipos de componente (ex.: `Exercicio`, `Avaliacao`) também podem ser adicionados herdando de `ComponenteCatalogo` e devolvendo o iterador adequado, sem quebrar o filtro existente.
-
-**Conclusão:** a separação entre a *estrutura* (Composite) e o *percurso* (Iterator) transformou a adição de uma regra nova numa tarefa puramente aditiva. O cliente navega a árvore inteira por um contrato estável e polimórfico, e o `NullIterator` elimina casos especiais nas folhas. O código existente permanece intacto, o que reduz o risco de regressões e respeita SRP e OCP.
+- Tirei o `getSubComponentes()` do `Modulo`. Ele entregava a lista interna para qualquer um mexer, o que ia contra a ideia do Iterator. Nada no projeto usava esse método.
+- Arrumei o contrato dos iteradores: agora o `next()` lança `NoSuchElementException` quando não tem mais itens, em vez de devolver `null` ou estourar outro erro. O `hasNext()` do `ModuloIterator` virou só `posicao < itens.size()`.
+- O `remover()` só diz "removido" no log quando o item realmente estava no módulo. Senão avisa que não encontrou.
+- Criei o `CompositeIterator`, que percorre a árvore inteira em profundidade usando uma pilha de iteradores. O `criarIterator()` continua devolvendo só os filhos diretos, e o novo `criarIteratorCompleto()` devolve tudo.
+- Adicionei o `ehFolha()` no componente e reescrevi o filtro com ele, num laço só, sem recursão e sem `instanceof`.
+- Criei o `ModuloLegado` (filhos num array que dobra de tamanho quando enche) com o `ArrayModuloIterator`, para mostrar que o Iterator esconde coleções diferentes.
+- No `Main`, coloquei um submódulo (Módulo 2.4, que é um `ModuloLegado`) dentro do Módulo 2, para ter três níveis de aninhamento e os dois tipos de coleção na mesma árvore.
+- Fiz o `TesteSingletonThreads`, que dispara 20 threads ao mesmo tempo pedindo o logger e confere se todas receberam o mesmo objeto.
