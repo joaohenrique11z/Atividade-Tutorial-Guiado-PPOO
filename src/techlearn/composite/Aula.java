@@ -31,4 +31,9 @@ public class Aula extends ComponenteCatalogo {
     public Iterator<ComponenteCatalogo> criarIterator() {
         return new NullIterator<>();
     }
+
+    @Override
+    public Iterator<ComponenteCatalogo> criarIteratorCompleto() {
+        return new NullIterator<>();
+    }
 }

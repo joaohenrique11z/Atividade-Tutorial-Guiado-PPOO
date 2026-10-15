@@ -21,5 +21,9 @@ public abstract class ComponenteCatalogo {
 
     public abstract void exibirDetalhes();
 
+    // Só os filhos diretos.
     public abstract Iterator<ComponenteCatalogo> criarIterator();
+
+    // Todos os descendentes, em qualquer nível.
+    public abstract Iterator<ComponenteCatalogo> criarIteratorCompleto();
 }

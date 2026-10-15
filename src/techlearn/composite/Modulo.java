@@ -1,5 +1,6 @@
 package techlearn.composite;
 
+import techlearn.iterator.CompositeIterator;
 import techlearn.iterator.Iterator;
 import techlearn.iterator.ModuloIterator;
 import techlearn.logging.LoggerService;
@@ -55,5 +56,10 @@ public class Modulo extends ComponenteCatalogo {
     @Override
     public Iterator<ComponenteCatalogo> criarIterator() {
         return new ModuloIterator(subComponentes);
+    }
+
+    @Override
+    public Iterator<ComponenteCatalogo> criarIteratorCompleto() {
+        return new CompositeIterator(criarIterator());
     }
 }
